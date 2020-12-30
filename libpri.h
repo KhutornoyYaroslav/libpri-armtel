@@ -37,6 +37,11 @@
 #ifndef _LIBPRI_H
 #define _LIBPRI_H
 
+/* Armtel extension protocol DSS */
+#define PRI_ARMTEL_EXT
+/* Armtel extension protocol DSS step1 */
+#define PRI_ARMTEL_EXT1
+
 /* Node types */
 #define PRI_NETWORK		1
 #define PRI_CPE			2
@@ -100,6 +105,45 @@
 #define PRI_EVENT_RETRIEVE_REJ	26	/* RETRIEVE_REJECT received */
 #define PRI_EVENT_CONNECT_ACK	27	/* CONNECT_ACKNOWLEDGE received */
 
+#ifdef PRI_ARMTEL_EXT
+#define ARMTEL_FILE_CONFIG "armtel.conf"
+#define PRI_EVENT_NET_IND	     28	   /* Armtel  network indication*/
+#define PRI_EVENT_ASK_WORD	     29	   /* Armtel  Messages*/
+#define PRI_EVENT_REMOVE_WORD	 30	   /* Armtel  Messages*/
+#define PRI_EVENT_DIRECTION	     31	   /* Armtel  Messages*/
+#define PRI_EVENT_INTERRUPT_WORD	32	   /* Armtel  Messages*/
+#define PRI_EVENT_DISKRET3	        33	   /* Armtel  Messages*/
+#define PRI_EVENT_CHANGE_STATE_CONF	34   /* Armtel  Messages*/
+
+
+#define ARMTEL_NET_IND	        0x77	   /* Armtel  Messages*/
+#define ARMTEL_NET_IND_TXD	    0xF7	   /* Armtel  Messages*/
+#define ARMTEL_ASK_WORD	        0x72	   /* Armtel  Messages*/
+#define ARMTEL_ASK_WORD_TX	    0xF2	   /* Armtel  Messages*/
+#define ARMTEL_REMOVE_WORD	    0x73	   /* Armtel  Messages*/
+#define ARMTEL_REMOVE_WORD_TX   0xF3	   /* Armtel  Messages*/
+#define ARMTEL_DIRECTION	    0x74	   /* Armtel  Messages*/
+#define ARMTEL_DIRECTION_TX     0xF4	   /* Armtel  Messages*/
+#define ARMTEL_INTERRUPT_WORD	0x75	   /* Armtel  Messages*/
+#define ARMTEL_INTERRUPT_WORD_TX    0xF5   /* Armtel  Messages*/
+#define ARMTEL_DISKRET3	         0x70	   /* Armtel  Messages*/
+#define ARMTEL_DISKRET3_TX   	 0xF0      /* Armtel  Messages*/
+#define ARMTEL_CHANGE_STATE_CONF	0x76   /* Armtel  Messages*/
+#define ARMTEL_CHANGE_STATE_CONF_TX 0xF6   /* Armtel  Messages*/
+
+#define ARMTEL_IE_NUM_SWITCH	0x56	   /* Armtel  Information elements*/
+#define ARMTEL_IE_NET_IND	    0x57	   /* Armtel  Information elements*/
+#define ARMTEL_IE_PRIO          0x51       /* Armtel  Information elements*/
+#define ARMTEL_IE_RELAY         0x50       /* Armtel  Information elements*/
+#define ARMTEL_IE_CONTEXT       0x55       /* Armtel  Information elements*/
+#endif
+#ifdef PRI_ARMTEL_EXT1
+#define ARMTEL_VER_LIB_EXT "Armtel libpri extention v1.5"
+
+#define DEFAULT_PRIO 0xFF
+#define DEFAULT_CONTEXT 0xFF
+
+#endif
 /* Simple states */
 #define PRI_STATE_DOWN		0
 #define PRI_STATE_UP		1
@@ -1097,6 +1141,9 @@ typedef struct pri_event_answer {
 	q931_call *call;
 	char useruserinfo[260];		/* User->User info */
 	struct pri_subcommands *subcmds;
+#ifdef PRI_ARMTEL_EXT
+	unsigned char armtel_context;
+#endif
 } pri_event_answer;
 
 /*! Deprecated replaced by struct pri_event_facility. */
@@ -1166,6 +1213,11 @@ typedef struct pri_event_ring {
 	struct pri_party_id calling;			/* Calling Party's info, initially subaddress' */
 	struct pri_party_subaddress called_subaddress;	/* Called party's subaddress */
 	char keypad_digits[64];		/* Keypad digits in the SETUP message. */
+#ifdef PRI_ARMTEL_EXT
+	unsigned char armtel_prio;
+	unsigned char armtel_relay;
+	unsigned char armtel_context;
+#endif
 } pri_event_ring;
 
 typedef struct pri_event_hangup {
@@ -1296,6 +1348,49 @@ struct pri_event_connect_ack {
 	struct pri_subcommands *subcmds;
 };
 
+#ifdef PRI_ARMTEL_EXT
+struct pri_event_armtel_net_ind {
+   int e;
+   unsigned char num_switch[32];
+   unsigned char net_ind[32];
+   unsigned char net_ind_len;
+};
+struct pri_event_ask_word {
+   int e;
+   int channel;
+   unsigned char armtel_prio;
+   unsigned char armtel_context;
+};
+struct pri_event_remove_word {
+   int e;
+   int channel;
+   unsigned char armtel_prio;
+   unsigned char armtel_context;
+};
+struct pri_event_interrupt_word {
+   int e;
+   int channel;
+   unsigned char armtel_prio;
+   unsigned char armtel_context;
+};
+struct pri_event_direction {
+   int e;
+   int channel;
+   unsigned char armtel_context;
+};
+struct pri_event_diskret3 {
+   int e;
+   int channel;
+};
+struct pri_event_change_state_conf {
+   int e;
+   int channel;
+   unsigned char armtel_context;
+};
+
+
+#endif
+
 typedef union {
 	int e;
 	pri_event_generic gen;		/* Generic view */
@@ -1321,10 +1416,43 @@ typedef union {
 	struct pri_event_retrieve_ack retrieve_ack;
 	struct pri_event_retrieve_rej retrieve_rej;
 	struct pri_event_connect_ack connect_ack;
+#ifdef PRI_ARMTEL_EXT
+	struct pri_event_armtel_net_ind net_ind;
+
+	struct pri_event_ask_word ask_word;
+	struct pri_event_remove_word remove_word;
+	struct pri_event_interrupt_word interrupt_word;
+	struct pri_event_direction direction;
+	struct pri_event_diskret3 diskret3;
+	struct pri_event_change_state_conf change_state_conf;
+
+#endif
+
 } pri_event;
 
 struct pri;
 struct pri_sr;
+
+#ifdef PRI_ARMTEL_EXT
+ void pri_send_armtel_net_ind(struct pri *pri,char *num, char* sw ,char* ind,unsigned char len);
+ void  pri_armtel_block_error(int b);
+
+ int pri_send_armtel_ask_word(struct pri *pri, q931_call *call,unsigned char prio,unsigned char context);
+ int pri_send_armtel_remove_word(struct pri *pri, q931_call *call,unsigned char prio,unsigned char context);
+ int pri_send_armtel_interrupt_word(struct pri *pri, q931_call *call,unsigned char prio,unsigned char context);
+ int pri_send_armtel_direction(struct pri *pri, q931_call *call,unsigned char context);
+ int pri_send_armtel_diskret3(struct pri *pri, q931_call *call);
+ int pri_send_armtel_change_state_conf (struct pri *pri, q931_call *call,unsigned char context);
+ int pri_set_armtel_answer (struct pri *pri, q931_call *call,unsigned char context);
+ int pri_set_armtel_new_call (struct pri *pri, q931_call *call,unsigned char context,unsigned char prio,unsigned char relay);
+
+
+#endif
+#ifdef PRI_ARMTEL_EXT1
+ char* pri_get_armtel_ver_ext(void);
+ int   pri_get_layer1(q931_call*);
+#endif
+
 
 #define PRI_IO_FUNCS
 /* Type declaration for callbacks to read or write a HDLC frame as below */

@@ -492,6 +492,14 @@ struct q931_call {
 
 	/*! Current dialed digits to be sent or just received. */
 	char overlap_digits[PRI_MAX_NUMBER_LEN];
+#ifdef PRI_ARMTEL_EXT
+	char num_switch[32];
+	char net_ind[32];
+	unsigned char net_ind_len;
+	unsigned char armtel_prio;
+	unsigned char armtel_relay;
+	unsigned char armtel_context;
+#endif
 
 	/*!
 	 * \brief Local party ID

@@ -115,6 +115,114 @@ static const struct pri_timer_table pri_timer[] = {
 /* *INDENT-ON* */
 };
 
+#ifdef PRI_ARMTEL_EXT1
+char *pri_get_armtel_ver_ext()
+{
+	return(ARMTEL_VER_LIB_EXT);
+}
+int  pri_get_layer1(q931_call* c)
+{
+	return(c->bc.userl1);
+}
+#endif
+#ifdef PRI_ARMTEL_EXT
+
+static q931_call *net_ind_call= 0;
+void pri_armtel_block_error(int b)
+{
+	q921_armte_block_error(b);
+}
+void pri_send_armtel_net_ind(struct pri *pri,char *num, char* sw ,char* ind,unsigned char len)
+{
+	int res;
+	if(!net_ind_call) {
+		net_ind_call=q931_new_call(pri);
+	}
+
+	net_ind_call->called.number.valid=1;
+    if(len > sizeof(net_ind_call->net_ind)) len= sizeof(net_ind_call->net_ind);
+    memcpy(net_ind_call->net_ind,(const char*)ind,len);
+    net_ind_call->net_ind_len=len;
+//	strcpy(net_ind_call->net_ind,(const char*)ind);//,strlen(ind));
+	strcpy(net_ind_call->num_switch,(const char*)sw);//,strlen(sw));
+	strcpy(net_ind_call->overlap_digits,(const char*)num);//,strlen(num));
+
+
+	res = q931_armtel_net_ind(pri,net_ind_call);
+	if(res<0){
+		pri_error(pri, "Error send armtel indication   %d \n", res);
+	}
+}
+
+int  pri_send_armtel_ask_word(struct pri *pri, q931_call *call,unsigned char prio,unsigned char context)
+{
+	if (!pri || !pri_is_call_valid(pri, call)) {
+		return -1;
+	}
+	return q931_armtel_ask_word(pri, call, prio, context);
+}
+int  pri_send_armtel_remove_word(struct pri *pri, q931_call *call,unsigned char prio,unsigned char context)
+{
+	if (!pri || !pri_is_call_valid(pri, call)) {
+		return -1;
+	}
+	return q931_armtel_remove_word(pri, call, prio, context);
+
+}
+int  pri_send_armtel_interrupt_word(struct pri *pri, q931_call *call,unsigned char prio,unsigned char context)
+{
+	if (!pri || !pri_is_call_valid(pri, call)) {
+		return -1;
+	}
+	return q931_armtel_interrupt_word(pri, call, prio, context);
+
+}
+int  pri_send_armtel_direction(struct pri *pri, q931_call *call,unsigned char context)
+{
+	if (!pri || !pri_is_call_valid(pri, call)) {
+		return -1;
+	}
+	return q931_armtel_direction(pri, call, context);
+
+}
+int  pri_send_armtel_diskret3(struct pri *pri, q931_call *call)
+{
+	if (!pri || !pri_is_call_valid(pri, call)) {
+		return -1;
+	}
+	return q931_armtel_diskret3(pri, call);
+
+}
+int  pri_send_armtel_change_state_conf (struct pri *pri, q931_call *call,unsigned char context)
+{
+	if (!pri || !pri_is_call_valid(pri, call)) {
+		return -1;
+	}
+	return q931_armtel_change_state_conf(pri, call, context);
+
+}
+int pri_set_armtel_answer (struct pri *pri, q931_call *call,unsigned char context)
+{
+	if (!pri || !pri_is_call_valid(pri, call)) {
+		return -1;
+	}
+	call->armtel_context=context;
+	return 0;
+}
+int pri_set_armtel_new_call (struct pri *pri, q931_call *call,unsigned char context,unsigned char prio,unsigned char relay)
+{
+	if (!pri || !pri_is_call_valid(pri, call)) {
+		return -1;
+	}
+
+	call->armtel_context=context;
+	call->armtel_prio=prio;
+	call->armtel_relay=relay;
+	return 0;
+}
+#endif
+
+
 char *pri_node2str(int node)
 {
 	switch(node) {

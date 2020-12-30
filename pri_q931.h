@@ -455,6 +455,19 @@ extern int maintenance_service(struct pri *pri, int span, int channel, int chang
 
 /* Q.SIG specific */
 #define QSIG_IE_TRANSIT_COUNT		0x31
+#ifdef PRI_ARMTEL_EXT
+
+extern int q931_armtel_net_ind(struct pri *pri,q931_call *c);
+
+extern int q931_armtel_ask_word(struct pri *pri, q931_call *call, unsigned char prio, unsigned char context);
+extern int q931_armtel_remove_word(struct pri *pri, q931_call *call, unsigned char prio, unsigned char context);
+extern int q931_armtel_interrupt_word(struct pri *pri, q931_call *call, unsigned char prio, unsigned char context);
+extern int q931_armtel_direction(struct pri *pri, q931_call *call, unsigned char context);
+extern int q931_armtel_diskret3(struct pri *pri, q931_call *call);
+extern int q931_armtel_change_state_conf(struct pri *pri, q931_call *call, unsigned char context);
+
+#endif
+
 
 int q931_receive(struct q921_link *link, q931_h *h, int len);
 

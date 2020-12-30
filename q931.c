@@ -1925,7 +1925,6 @@ static int transmit_bearer_capability(int full_ie, struct pri *ctrl, q931_call *
 	tc = call->bc.transcapability;
 	ie->data[0] = 0x80 | tc;
 	ie->data[1] = call->bc.transmoderate | 0x80;
-
 	pos = 2;
 	/* octet 4.1 exists if mode/rate is multirate */
 	if (call->bc.transmoderate == TRANS_MODE_MULTIRATE) {
@@ -1942,6 +1941,12 @@ static int transmit_bearer_capability(int full_ie, struct pri *ctrl, q931_call *
 		/* Unrestricted digital 64k data calls don't use user layer 2/3 */
 		return 4;
 	}
+#ifdef PRI_ARMTEL_EXT1
+	if (call->bc.transmoderate == TRANS_MODE_2x64_CIRCUIT) {
+		ie->data[0] = 0x91;
+		ie->data[1] = 0x91;
+	}
+#endif
 
 	if (call->bc.transmoderate != TRANS_MODE_PACKET) {
 		/* If you have an AT&T 4ESS, you don't send any more info */
@@ -3954,6 +3959,131 @@ static int transmit_reverse_charging_indication(int full_ie, struct pri *ctrl, q
 	return 0;
 }
 
+#ifdef PRI_ARMTEL_EXT
+
+
+static int armtel_net_ind_ies[] = {
+	Q931_CALLED_PARTY_NUMBER,
+	ARMTEL_IE_NUM_SWITCH,
+	ARMTEL_IE_NET_IND,
+	-1
+};
+
+static void init_armtel_ie( q931_call *call)
+{
+
+	call->armtel_context=DEFAULT_CONTEXT;
+	call->armtel_prio=DEFAULT_PRIO;
+	call->armtel_relay=0;
+}
+
+
+static void dump_armtel_num_switch(int full_ie, struct pri *pri, q931_ie *ie, int len, char prefix)
+{
+
+}
+static int receive_armtel_num_switch(int full_ie, struct pri *pri, q931_call *call, int msgtype, q931_ie *ie, int len)
+{
+	q931_strget((unsigned char *) call->num_switch,
+		sizeof(call->num_switch), ie->data, ie->len);
+
+//	asn1_dump(pri, ie->data, ie->data +ie->len);
+   return 0;
+}
+static int transmit_armtel_num_switch(int full_ie, struct pri *pri, q931_call *call, int msgtype, q931_ie *ie, int len, int order)
+{
+	size_t datalen;
+
+	if (!call->num_switch) {
+		return 0;
+	}
+
+	datalen = strlen(call->num_switch);
+	memcpy(ie->data , call->num_switch, datalen);
+	return (datalen +  2);
+
+}
+static void dump_armtel_net_ind(int full_ie, struct pri *pri, q931_ie *ie, int len, char prefix)
+{
+
+}
+static int receive_armtel_net_ind(int full_ie, struct pri *pri, q931_call *call, int msgtype, q931_ie *ie, int len)
+{
+	q931_memget((unsigned char *) call->net_ind,
+		sizeof(call->net_ind), ie->data, ie->len);
+	call->net_ind_len=ie->len;
+//	asn1_dump(pri, ie->data, ie->data +ie->len);
+   return 0;
+}
+static int transmit_armtel_net_ind(int full_ie, struct pri *pri, q931_call *call, int msgtype, q931_ie *ie, int len, int order)
+{
+	size_t datalen;
+
+	if (!call->net_ind) {
+		return 0;
+	}
+//	datalen = strlen(call->net_ind);
+    datalen = call->net_ind_len;
+	memcpy(ie->data , call->net_ind, datalen);
+	return (datalen +  2);
+
+}
+
+static void dump_armtel_prio(int full_ie, struct pri *pri, q931_ie *ie, int len, char prefix)
+{
+
+}
+static int receive_armtel_prio(int full_ie, struct pri *pri, q931_call *call, int msgtype, q931_ie *ie, int len)
+{
+	if(ie->len==1) call->armtel_prio=ie->data[0];
+//	asn1_dump(pri, ie->data, ie->data +ie->len);
+   return 0;
+}
+static int transmit_armtel_prio(int full_ie, struct pri *pri, q931_call *call, int msgtype, q931_ie *ie, int len, int order)
+{
+	if(call->armtel_prio==0xFF) call->armtel_prio=0xFE; //return 0;
+	memcpy(ie->data , &call->armtel_prio, 1);
+	return (3);
+}
+
+static void dump_armtel_relay(int full_ie, struct pri *pri, q931_ie *ie, int len, char prefix)
+{
+
+}
+static int receive_armtel_relay(int full_ie, struct pri *pri, q931_call *call, int msgtype, q931_ie *ie, int len)
+{
+	if(ie->len==1) call->armtel_relay=ie->data[0];
+//	asn1_dump(pri, ie->data, ie->data +ie->len);
+   return 0;
+}
+static int transmit_armtel_relay(int full_ie, struct pri *pri, q931_call *call, int msgtype, q931_ie *ie, int len, int order)
+{
+	if(call->armtel_relay==0) return 0;
+	memcpy(ie->data , &call->armtel_relay, 1);
+	return (3);
+}
+
+static void dump_armtel_context(int full_ie, struct pri *pri, q931_ie *ie, int len, char prefix)
+{
+
+}
+static int receive_armtel_context(int full_ie, struct pri *pri, q931_call *call, int msgtype, q931_ie *ie, int len)
+{
+	if(ie->len==1) call->armtel_context=ie->data[0];
+//	asn1_dump(pri, ie->data, ie->data +ie->len);
+   return 0;
+}
+static int transmit_armtel_context(int full_ie, struct pri *pri, q931_call *call, int msgtype, q931_ie *ie, int len, int order)
+{
+	memcpy(ie->data , &call->armtel_context, 1);
+	return (3);
+}
+
+
+#endif
+
+
+
 static struct ie ies[] = {
 	/* Codeset 0 - Common */
 	{ 1, NATIONAL_CHANGE_STATUS, "Change Status Information", dump_change_status, receive_change_status, transmit_change_status },
@@ -4008,6 +4138,15 @@ static struct ie ies[] = {
 	{ 1, Q931_IE_USER_USER_FACILITY, "User-User Facility" },
 	{ 1, Q931_IE_UPDATE, "Update" },
 	{ 1, Q931_SENDING_COMPLETE, "Sending Complete", dump_sending_complete, receive_sending_complete, transmit_sending_complete },
+#ifdef PRI_ARMTEL_EXT
+	{ 1, ARMTEL_IE_NUM_SWITCH, "Armtel number switch", dump_armtel_num_switch, receive_armtel_num_switch, transmit_armtel_num_switch },
+	{ 1, ARMTEL_IE_NET_IND, "Armtel net_indication", dump_armtel_net_ind, receive_armtel_net_ind, transmit_armtel_net_ind },
+	{ 1, ARMTEL_IE_PRIO, "Armtel priority", dump_armtel_prio, receive_armtel_prio, transmit_armtel_prio },
+	{ 1, ARMTEL_IE_RELAY, "Armtel relay", dump_armtel_relay, receive_armtel_relay, transmit_armtel_relay },
+	{ 1, ARMTEL_IE_CONTEXT, "Armtel context", dump_armtel_context, receive_armtel_context, transmit_armtel_context },
+
+#endif
+
 	/* Codeset 4 - Q.SIG specific */
 	{ 1, QSIG_IE_TRANSIT_COUNT | Q931_CODESET(4), "Transit Count", dump_transit_count },
 	/* Codeset 5 - National specific (ETSI PISN specific) */
@@ -5122,6 +5261,13 @@ static int send_message(struct pri *ctrl, q931_call *call, int msgtype, int ies[
 	len = sizeof(buf);
 	init_header(ctrl, call, buf, &h, &mh, &len, (msgtype >> 8));
 	mh->msg = msgtype & 0x00ff;
+#ifdef PRI_ARMTEL_EXT
+	if((msgtype ==ARMTEL_NET_IND_TXD)|| (msgtype ==ARMTEL_DIRECTION_TX)||
+	   (msgtype ==ARMTEL_ASK_WORD_TX)|| (msgtype ==ARMTEL_REMOVE_WORD_TX)||
+	   (msgtype ==ARMTEL_INTERRUPT_WORD_TX)|| (msgtype ==ARMTEL_CHANGE_STATE_CONF_TX)||
+	   (msgtype ==ARMTEL_DISKRET3_TX) ) mh->f=1;
+#endif
+
 	x=0;
 	codeset = 0;
 	while(ies[x] > -1) {
@@ -5875,6 +6021,9 @@ static int connect_ies[] = {
 	Q931_IE_TIME_DATE,
 	Q931_IE_CONNECTED_NUM,
 	Q931_IE_CONNECTED_SUBADDR,
+#ifdef PRI_ARMTEL_EXT
+	ARMTEL_IE_CONTEXT,
+#endif
 	-1
 };
 
@@ -6132,6 +6281,11 @@ static int setup_ies[] = {
 	Q931_SENDING_COMPLETE,
 	Q931_IE_ORIGINATING_LINE_INFO,
 	Q931_IE_GENERIC_DIGITS,
+#ifdef PRI_ARMTEL_EXT
+	ARMTEL_IE_PRIO,
+	ARMTEL_IE_RELAY,
+	ARMTEL_IE_CONTEXT,
+#endif
 	-1
 };
 
@@ -6261,9 +6415,17 @@ int q931_setup(struct pri *ctrl, q931_call *c, struct pri_sr *req)
 	} else {
 		c->keypad_digits[0] = '\0';
 	}
+#ifdef PRI_ARMTEL_EXT1
+     if(req->transmode == PRI_LAYER_1_G722_G725 ){
+  	   c->bc.transcapability = req->transmode;
+  	   c->bc.transmoderate = TRANS_MODE_2x64_CIRCUIT;
 
-	c->bc.transcapability = req->transmode;
-	c->bc.transmoderate = TRANS_MODE_64_CIRCUIT;
+     }
+     else{
+	   c->bc.transcapability = req->transmode;
+	   c->bc.transmoderate = TRANS_MODE_64_CIRCUIT;
+     }
+#endif
 	if (!req->userl1)
 		req->userl1 = PRI_LAYER_1_ULAW;
 	c->bc.userl1 = req->userl1;
@@ -7193,6 +7355,20 @@ static int prepare_to_handle_q931_message(struct pri *ctrl, q931_mh *mh, q931_ca
 	}
 	
 	switch(mh->msg) {
+#ifdef PRI_ARMTEL_EXT
+	case ARMTEL_NET_IND:
+	case ARMTEL_ASK_WORD:
+	case ARMTEL_REMOVE_WORD:
+	case ARMTEL_DIRECTION:
+	case ARMTEL_DISKRET3:
+	case ARMTEL_CHANGE_STATE_CONF:
+//	case ARMTEL_INTERRUPT_WORD:
+
+//		pri_message(ctrl, "-- prepare_to_handle Armtel indication\n");
+
+	 break;
+#endif
+
 	case Q931_RESTART:
 		if (ctrl->debug & PRI_DEBUG_Q931_STATE)
 			pri_message(ctrl, "-- Processing Q.931 Restart\n");
@@ -7522,6 +7698,9 @@ int q931_receive(struct q921_link *link, q931_h *h, int len)
 		pri_error(ctrl, "Unable to locate call %d\n", cref);
 		return -1;
 	}
+#ifdef PRI_ARMTEL_EXT
+	init_armtel_ie(c);
+#endif
 	if (c->master_call->outboundbroadcast && link != &ctrl->link) {
 		c = q931_get_subcall(link, c->master_call);
 		if (!c) {
@@ -8081,6 +8260,14 @@ static void q931_fill_ring_event(struct pri *ctrl, struct q931_call *call)
 {
 	struct pri_subcommand *subcmd;
 
+#ifdef PRI_ARMTEL_EXT
+
+//	pri_message(ctrl, "Armtel prio=%d;relay=%d;context=%d \n",call->armtel_prio,call->armtel_relay,call->armtel_context);
+	ctrl->ev.ring.armtel_prio=call->armtel_prio;
+	ctrl->ev.ring.armtel_relay=call->armtel_relay;
+	ctrl->ev.ring.armtel_context=call->armtel_context;
+
+#endif
 	if (call->redirecting.from.number.valid && !call->redirecting.count) {
 		/*
 		 * This is most likely because the redirecting number came in
@@ -8585,6 +8772,61 @@ static int post_handle_q931_message(struct pri *ctrl, struct q931_mh *mh, struct
 	struct q931_call *master_call;
 
 	switch(mh->msg) {
+#ifdef PRI_ARMTEL_EXT
+	case ARMTEL_NET_IND:
+
+//		pri_message(ctrl, "-- number switch =%s\n",c->num_switch);
+//		pri_message(ctrl, "-- dump net indication\n");
+//		asn1_dump(ctrl, (const unsigned char*)c->net_ind, (const unsigned char*)(c->net_ind + (strlen(c->net_ind))));
+        memcpy ((char*)ctrl->ev.net_ind.net_ind,(char*)c->net_ind,c->net_ind_len);
+        ctrl->ev.net_ind.net_ind_len=c->net_ind_len;
+        libpri_copy_string ((char*)ctrl->ev.net_ind.net_ind,(char*)c->net_ind,sizeof(ctrl->ev.net_ind.net_ind));
+        libpri_copy_string ((char*)ctrl->ev.net_ind.num_switch,(char*)c->num_switch,sizeof(ctrl->ev.net_ind.num_switch));
+        ctrl->ev.e=PRI_EVENT_NET_IND;
+        return Q931_RES_HAVEEVENT;
+	case ARMTEL_ASK_WORD:
+		ctrl->ev.ask_word.armtel_prio=c->armtel_prio;
+		ctrl->ev.ask_word.armtel_context=c->armtel_context;
+		ctrl->ev.ask_word.channel = q931_encode_channel(c);
+        ctrl->ev.e=PRI_EVENT_ASK_WORD;
+        return Q931_RES_HAVEEVENT;
+	 break;
+	case ARMTEL_REMOVE_WORD:
+		ctrl->ev.remove_word.armtel_prio=c->armtel_prio;
+		ctrl->ev.remove_word.armtel_context=c->armtel_context;
+		ctrl->ev.remove_word.channel = q931_encode_channel(c);
+        ctrl->ev.e=PRI_EVENT_REMOVE_WORD;
+        return Q931_RES_HAVEEVENT;
+	 break;
+/*	case ARMTEL_INTERRUPT_WORD:
+		ctrl->ev.interrupt_word.armtel_prio=c->armtel_prio;
+		ctrl->ev.interrupt_word.armtel_context=c->armtel_context;
+        ctrl->ev.e=PRI_EVENT_INTERRUPT_WORD;
+        return Q931_RES_HAVEEVENT;
+	 break;
+//	 !!!!!! q931.c:9406:2: error: duplicate case value  case Q931_STATUS_ENQUIRY: !!!!!!!
+     see case Q931_STATUS_ENQUIRY:
+*/
+	case ARMTEL_DIRECTION:
+		ctrl->ev.direction.armtel_context=c->armtel_context;
+		ctrl->ev.direction.channel = q931_encode_channel(c);
+        ctrl->ev.e=PRI_EVENT_DIRECTION;
+        return Q931_RES_HAVEEVENT;
+	 break;
+	case ARMTEL_DISKRET3:
+		ctrl->ev.diskret3.channel = q931_encode_channel(c);
+        ctrl->ev.e=PRI_EVENT_DISKRET3;
+        return Q931_RES_HAVEEVENT;
+	 break;
+	case ARMTEL_CHANGE_STATE_CONF:
+		ctrl->ev.change_state_conf.armtel_context=c->armtel_context;
+		ctrl->ev.change_state_conf.channel = q931_encode_channel(c);
+        ctrl->ev.e=PRI_EVENT_CHANGE_STATE_CONF;
+        return Q931_RES_HAVEEVENT;
+	 break;
+
+#endif
+
 	case Q931_RESTART:
 		q931_display_subcmd(ctrl, c);
 		if (missingmand) {
@@ -8670,7 +8912,15 @@ static int post_handle_q931_message(struct pri *ctrl, struct q931_mh *mh, struct
 			/* it's not yet a call since higher level can respond with RELEASE or RELEASE_COMPLETE */
 			c->alive = 0;
 		}
-		if (c->bc.transmoderate != TRANS_MODE_64_CIRCUIT) {
+#ifdef PRI_ARMTEL_EXT1
+		if ((c->bc.transmoderate != TRANS_MODE_64_CIRCUIT)&&
+			(c->bc.transmoderate != TRANS_MODE_2x64_CIRCUIT))
+#else
+		if (c->bc.transmoderate != TRANS_MODE_64_CIRCUIT)
+
+#endif
+		{
+	//				pri_message(ctrl, "-- transmoderate =%d\n",c->bc.transmoderate);
 			q931_release_complete(ctrl, c, PRI_CAUSE_BEARERCAPABILITY_NOTIMPL);
 			break;
 		}
@@ -8757,7 +9007,9 @@ static int post_handle_q931_message(struct pri *ctrl, struct q931_mh *mh, struct
 		ctrl->ev.answer.progressmask = c->progressmask;
 		libpri_copy_string(ctrl->ev.answer.useruserinfo, c->useruserinfo, sizeof(ctrl->ev.answer.useruserinfo));
 		c->useruserinfo[0] = '\0';
-
+#ifdef PRI_ARMTEL_EXT
+		ctrl->ev.answer.armtel_context=c->armtel_context;
+#endif
 		if (!ctrl->manual_connect_ack) {
 			q931_connect_acknowledge(ctrl, c, 0);
 		} else {
@@ -9195,11 +9447,22 @@ static int post_handle_q931_message(struct pri *ctrl, struct q931_mh *mh, struct
 		ctrl->ev.ring.complete = c->complete;	/* this covers IE 33 (Sending Complete) */
 		return Q931_RES_HAVEEVENT;
 	case Q931_STATUS_ENQUIRY:
-		q931_display_clear(c);
-		if (c->newcall) {
+#ifdef PRI_ARMTEL_EXT
+		if((c->armtel_prio == DEFAULT_PRIO)&&(c->armtel_context==DEFAULT_CONTEXT)) {
+		  q931_display_clear(c);
+		  if (c->newcall) {
 			q931_release_complete(ctrl, c, newcall_rel_comp_cause(c));
-		} else
+		  } else
 			q931_status(ctrl,c, PRI_CAUSE_RESPONSE_TO_STATUS_ENQUIRY);
+		}
+		else{
+		  ctrl->ev.interrupt_word.armtel_prio=c->armtel_prio;
+		  ctrl->ev.interrupt_word.armtel_context=c->armtel_context;
+			ctrl->ev.interrupt_word.channel = q931_encode_channel(c);
+          ctrl->ev.e=PRI_EVENT_INTERRUPT_WORD;
+          return Q931_RES_HAVEEVENT;
+		}
+#endif
 		break;
 	case Q931_SETUP_ACKNOWLEDGE:
 		q931_display_subcmd(ctrl, c);
@@ -9986,3 +10249,78 @@ int q931_call_setcrv(struct pri *ctrl, q931_call *call, int crv, int callmode)
 	}
 	return 0;
 }
+#ifdef PRI_ARMTEL_EXT
+int q931_armtel_net_ind(struct pri *pri,q931_call *c)
+{
+
+	   return (send_message(pri,c,ARMTEL_NET_IND_TXD,armtel_net_ind_ies));
+
+}
+
+int q931_armtel_ask_word(struct pri *pri, q931_call *call, unsigned char prio,unsigned char  context)
+{
+	static int ies[]={
+			ARMTEL_IE_PRIO,
+			ARMTEL_IE_CONTEXT,
+			-1,
+	};
+	call->armtel_prio=prio;
+	call->armtel_context=context;
+	return (send_message(pri,call,ARMTEL_ASK_WORD_TX,ies));
+}
+int q931_armtel_remove_word(struct pri *pri, q931_call *call, unsigned char prio, unsigned char context)
+{
+	static int ies[]={
+			ARMTEL_IE_PRIO,
+			ARMTEL_IE_CONTEXT,
+			-1,
+	};
+	call->armtel_prio=prio;
+	call->armtel_context=context;
+	return (send_message(pri,call,ARMTEL_REMOVE_WORD_TX,ies));
+
+}
+int q931_armtel_interrupt_word(struct pri *pri, q931_call *call, unsigned char prio, unsigned char context)
+{
+	static int ies[]={
+			ARMTEL_IE_PRIO,
+			ARMTEL_IE_CONTEXT,
+			-1,
+	};
+	call->armtel_prio=prio;
+	call->armtel_context=context;
+	return (send_message(pri,call,ARMTEL_INTERRUPT_WORD_TX,ies));
+
+}
+int q931_armtel_direction(struct pri *pri, q931_call *call, unsigned char context)
+{
+	static int ies[]={
+			ARMTEL_IE_CONTEXT,
+			-1,
+	};
+	call->armtel_context=context;
+	return (send_message(pri,call,ARMTEL_DIRECTION_TX,ies));
+
+}
+int q931_armtel_diskret3(struct pri *pri, q931_call *call)
+{
+	static int ies[]={
+			-1,
+	};
+
+	return (send_message(pri,call,ARMTEL_DISKRET3_TX,ies));
+
+}
+int q931_armtel_change_state_conf(struct pri *pri, q931_call *call, unsigned char context)
+{
+	static int ies[]={
+			ARMTEL_IE_CONTEXT,
+			-1,
+	};
+	call->armtel_context=context;
+	return (send_message(pri,call,ARMTEL_CHANGE_STATE_CONF_TX,ies));
+
+}
+
+#endif
+

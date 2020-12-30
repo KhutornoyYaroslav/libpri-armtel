@@ -71,7 +71,7 @@ CFLAGS += -Wall -Werror -Wstrict-prototypes -Wmissing-prototypes
 CFLAGS += -fPIC $(ALERTING) $(LIBPRI_OPT) $(COVERAGE_CFLAGS)
 INSTALL_PREFIX=$(DESTDIR)
 INSTALL_BASE=/usr
-libdir?=$(INSTALL_BASE)/lib
+libdir?=$(INSTALL_BASE)/lib64
 ifneq ($(findstring Darwin,$(OSARCH)),)
   SOFLAGS=$(LDFLAGS) -dynamic -bundle -Xlinker -macosx_version_min -Xlinker 10.4 -Xlinker -undefined -Xlinker dynamic_lookup -force_flat_namespace
   ifeq ($(shell /usr/bin/sw_vers -productVersion | cut -c1-4),10.6)

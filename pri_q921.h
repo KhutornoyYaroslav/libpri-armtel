@@ -70,6 +70,11 @@
 #define Q921_SAPI_X25_LAYER3      	16
 #define Q921_SAPI_LAYER2_MANAGEMENT	63
 
+#ifdef PRI_ARMTEL_EXT
+extern void  q921_armte_block_error(int b);
+
+#endif
+
 
 /*! Q.921 TEI management message type */
 enum q921_tei_identity {

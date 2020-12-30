@@ -2155,6 +2155,13 @@ static void q921_mdl_handle_error_callback(void *vlink)
 		q921_mdl_link_destroy(link);
 	}
 }
+#ifdef PRI_ARMTEL_EXT
+static int block_error;
+void  q921_armte_block_error(int b)
+{
+	block_error=b;
+}
+#endif
 
 static void q921_mdl_error(struct q921_link *link, char error)
 {
@@ -2167,6 +2174,10 @@ static void q921_mdl_error(struct q921_link *link, char error)
 	is_debug_q921_state = (ctrl->debug & PRI_DEBUG_Q921_STATE);
 	switch (error) {
 	case 'A':
+#ifdef PRI_ARMTEL_EXT
+		if(block_error)
+#endif
+
 		pri_message(ctrl,
 			"TEI=%d MDL-ERROR (A): Got supervisory frame with F=1 in state %d(%s)\n",
 			link->tei, link->state, q921_state2str(link->state));
